@@ -104,17 +104,25 @@
 #
 
 #------------------------------------------------------------------------------ ----------------------------------------
+# Constansts
+#
 RNDm=$((0x100000000 -1))               # m: >2^30, precise ^2 allows for boolean optimisation
 RNDa=$((0x5D635DBA & 0xFFFFFFF0 | 5))  # a: no binary pattern, as M is a ^2 A%8==5
 RNDc=1                                 # c: no factor in common with m
 
 # The wider (in bits) your result is, the less entropy will appear in the LSb's
-RNDw=3                                 # w= width of result
+RNDw=16                                # w= width of result
 RNDb=$((RNDr = 1 <<$RNDw, --RNDr))     # b= bitmask (variable (p)reuse)
 RNDr=$((32 -$RNDw))                    # r= right shift amount
 
+#------------------------------------------------------------------------------ ----------------------------------------
+# Variables
+#
+# There is no algorithmic requirement to store RNDs or RNDn
+# These are merely for convenience, and may be removed.
+#
 RNDs=$RANDOM                           # s= seed
-RNDx=$RNDs                             # x= last sequence value
+RNDx=$RNDs                             # x= most recent state
 RNDn=$(($RNDx & $RNDm))                # n= most recent PRN
 
 #+============================================================================= ========================================
@@ -125,9 +133,8 @@ RND() {  # ([seed, n])
 		return
 	}
 
-	local i=
-	RNDx=$((i = $RNDa *$RNDx +$RNDc, i %$RNDm))  # x <- (ax+c)%m
-	RNDn=$(($RNDx >>$RNDr))                      # upper bits have greater entropy
+	RNDx=$((RNDn = $RNDa *$RNDx +$RNDc, RNDn %$RNDm))  # x <- (ax+c)%m  (reuse RNDn as tmp)
+	RNDn=$(($RNDx >>$RNDr))                            # upper bits have greater entropy
 
 	return $RNDn
 }
