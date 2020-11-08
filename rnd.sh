@@ -111,7 +111,7 @@ RNDa=$((0x5D635DBA & 0xFFFFFFF0 | 5))  # a: no binary pattern, as M is a ^2 A%8=
 RNDc=1                                 # c: no factor in common with m
 
 # The wider (in bits) your result is, the less entropy will appear in the LSb's
-RNDw=16                                # w= width of result
+RNDw=3                                 # w= width of result
 RNDb=$((RNDr = 1 <<$RNDw, --RNDr))     # b= bitmask (variable (p)reuse)
 RNDr=$((32 -$RNDw))                    # r= right shift amount
 
@@ -141,32 +141,79 @@ RND() {  # ([seed, n])
 
 #+============================================================================= ========================================
 RNDtest() {
-	RND seed 19841984
+	RND seed $RANDOM
 
-	echo "RNDm=$RNDm"
-	echo "RNDa=$RNDa"
-	echo "RNDc=$RNDc"
-	echo ""
-	echo "RNDw=$RNDw"
-	echo "RNDm=$RNDm"
-	echo "RNDr=$RNDr"
-	echo ""
-	echo "RNDs=$RNDs"
-	echo "RNDx=$RNDx"
-	echo ""
-	echo "RNDn=$RNDn"
-	echo ""
+	sz=$1  # size of sample set
 
-	for ((i = 1000000;  i > 0;  i--)); do
-		RND
-		echo $RNDn
+	W=()       # weighting array
+	for ((i = $sz;  i > 0;  i--)); do
+		RND  # get a fresh random number to $RNDn
+		
+#		echo $RNDn  # echo to the tty
+		
+		# tally the weight
+		if [[ ${W[$RNDn]} == "" ]]; then 
+			W[$RNDn]=1
+		else
+			W[$RNDn]=$((${W[$RNDn]} +1))
+		fi
+		
+		# countdown timer
 		[[ $(($i % 10000)) -eq 0 ]] && echo -en "\r$i " >&2
 	done
 	echo -e "\rdone    " >&2
+	
+	echo "RNDm=$RNDm"
+	echo "RNDa=$RNDa"
+	echo "RNDc=$RNDc"
+#	echo ""
+	echo "RNDw=$RNDw"
+	echo "RNDb=$RNDb"
+	echo "RNDr=$RNDr"
+#	echo ""
+	echo "RNDs=$RNDs"
+#	echo "RNDx=$RNDx"
+#	echo ""
+#	echo "RNDn=$RNDn"
+#	echo ""
+
+	echo -e "\nStats\n-----"
+	tot=0               # total numbers counted
+	hi=$((1 << $RNDw))  # max number of values available
+	mt=0                # number of empty values
+	avg=$(($sz /$hi))   # average expected count
+	for ((i = 0;  i < $hi;  i++)); do
+		# only consider values which were generated at least once 
+		if [[ ${W[$i]} != "" ]]; then
+			echo $i: ${W[$i]}   $((${W[$i]} -$avg))  # value, count, deviation from average
+			((tot+=${W[$i]}))                        # tally the count
+		# otherwise just count is as an "empty" value
+		else
+			((mt++))
+		fi
+	done
+	echo "tot:$tot"
+	echo "empty: $mt"
+
+	min=$sz  # smallest count
+	max=0    # biggest count
+	for ((i = 0;  i < $hi;  i++)); do
+		[[ ${W[$i]} -lt $min ]] && min=${W[$i]}
+		[[ ${W[$i]} -gt $max ]] && max=${W[$i]}
+	done
+	
+	dn=$(($avg -$min))  # biggest deviation down
+	up=$(($max -$avg))  # biggest deviation up
+	pk=$up              # peak deviation
+	[[ $dn -gt $pk ]] && pk=$dn
+	pc=$(echo "($pk / $hi) / 100.0" | bc -l | head -c 6)  # worst % deviation
+	echo "range: $min <= $avg <= $max .. peak-dev: $pk = $pc%"
+
+	
 }
 
 #+============================================================================= ========================================
 # main
 #
-RNDtest
+RNDtest 1000000  # I suggest *at least* 1,000,000
 exit 0
