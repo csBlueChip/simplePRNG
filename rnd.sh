@@ -206,7 +206,7 @@ RNDtest() {
 	up=$(($max -$avg))  # biggest deviation up
 	pk=$up              # peak deviation
 	[[ $dn -gt $pk ]] && pk=$dn
-	pc=$(echo "($pk / $hi) / 100.0" | bc -l | head -c 6)  # worst % deviation
+	pc=$(echo "($pk * 100) / $sz" | bc -l | head -c 6)  # worst % deviation
 	echo "range: $min <= $avg <= $max .. peak-dev: $pk = $pc%"
 
 	
